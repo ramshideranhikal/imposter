@@ -165,9 +165,6 @@
     <div id="name-grid" class="name-grid"></div>
     <div class="round-badge"><span id="round-label">Round 1</span></div>
     <div style="flex:1"></div>
-    <div style="text-align:center; padding-bottom:28px">
-      <button class="small-link" onclick="confirmNewGame()">↺ Start a new game</button>
-    </div>
   </div>
 
   <!-- REVEAL -->
@@ -359,8 +356,9 @@ function nextRound() {
 function confirmNewGame() {
   if (!confirm('End this game for everyone?')) return;
   if (ref) ref.remove();
-  myName = null;
-  show('s-waiting');
+  // Open the admin setup page in a new tab so admin can create a fresh game
+  const indexUrl = window.location.href.replace(/\/game\.html.*$/, '/index.html');
+  window.open(indexUrl, '_blank');
 }
 
 /* ── toast ──────────────────────── */

@@ -311,6 +311,13 @@
     <div class="round-badge">
       <span id="round-label">Round 1</span>
     </div>
+    <div style="flex:1"></div>
+    <div style="text-align:center; padding-bottom:28px">
+      <button onclick="confirmNewGame()"
+        style="background:none;border:none;color:var(--muted);font-size:13px;cursor:pointer;font-family:inherit;text-decoration:underline;text-underline-offset:3px">
+        ↺ Start a new game
+      </button>
+    </div>
   </div>
 
   <!-- ══ REVEAL ══ -->
@@ -496,14 +503,24 @@ function renderSetupTags() {
     el.innerHTML = '<span style="color:var(--muted);font-size:13px">No players yet</span>';
     return;
   }
-  el.innerHTML = setupPlayers.map(n => {
-    const isAdmin = n === setupAdminName;
-    return `<div class="tag ${isAdmin ? 'is-admin' : ''}">
-      <button class="crown-btn" onclick="crownPlayer(${JSON.stringify(n)})" title="Set as game admin">👑</button>
-      ${n}
-      <span class="tag-x" onclick="removeSetupPlayer(${JSON.stringify(n)})">×</span>
+  el.innerHTML = setupPlayers.map((n, i) => {
+    const isAdmin  = n === setupAdminName;
+    const safeText = n.replace(/&/g, '&amp;').replace(/</g, '&lt;');
+    return `<div class="tag ${isAdmin ? 'is-admin' : ''}" data-idx="${i}">
+      <button class="crown-btn" data-crown-idx="${i}" onclick="crownByIdx(this)" title="Set as game admin">👑</button>
+      ${safeText}
+      <span class="tag-x" data-remove-idx="${i}" onclick="removeByIdx(this)">×</span>
     </div>`;
   }).join('');
+}
+
+function crownByIdx(btn) {
+  const i = parseInt(btn.getAttribute('data-crown-idx'));
+  crownPlayer(setupPlayers[i]);
+}
+function removeByIdx(btn) {
+  const i = parseInt(btn.getAttribute('data-remove-idx'));
+  removeSetupPlayer(setupPlayers[i]);
 }
 
 /* ── Copy URL & Start ─────────────────── */
@@ -542,20 +559,40 @@ function copyAndStart() {
 
 /* ── Name grid ────────────────────────── */
 function buildNameGrid(names, adminPlayerName) {
+  // Use data-name attribute to avoid quote-escaping issues in onclick
   document.getElementById('name-grid').innerHTML = names.map(n => {
-    const isAdmin = n === adminPlayerName;
-    return `<button class="name-btn" onclick="pickName(${JSON.stringify(n)})">
+    const isAdmin  = n === adminPlayerName;
+    const safeAttr = n.replace(/&/g, '&amp;').replace(/"/g, '&quot;');
+    const safeText = n.replace(/&/g, '&amp;').replace(/</g, '&lt;');
+    return `<button class="name-btn" data-name="${safeAttr}" onclick="handleNameTap(this)">
       ${isAdmin ? '<span class="crown-flag">👑</span>' : ''}
-      ${n}
+      ${safeText}
     </button>`;
   }).join('');
 }
 
+// Reads the name from the data attribute — avoids any quote-in-onclick issues
+function handleNameTap(btn) {
+  pickName(btn.getAttribute('data-name'));
+}
+
 function pickName(name) {
-  myName = name;
   if (!gameState) { showToast('Still connecting…', 'var(--muted)'); return; }
+  myName = name;
   renderReveal(gameState, name);
   show('s-reveal');
+}
+
+/* ── New game ─────────────────────────── */
+function confirmNewGame() {
+  if (!confirm('Start a new game? This will clear the current game for everyone.')) return;
+  ref.remove();
+  setupPlayers   = [];
+  setupAdminName = null;
+  document.getElementById('p-tags').innerHTML =
+    '<span style="color:var(--muted);font-size:13px">No players yet</span>';
+  document.getElementById('w-list').value = '';
+  show('s-setup');
 }
 
 function renderReveal(g, name) {
@@ -663,11 +700,19 @@ function adminRemovePlayer(n) {
 function renderAdminTags() {
   const el = document.getElementById('ap-tags');
   el.innerHTML = adminPlayers.length
-    ? adminPlayers.map(n =>
-        `<div class="tag">${n}
-           <span class="tag-x" onclick="adminRemovePlayer(${JSON.stringify(n)})">×</span>
-         </div>`).join('')
+    ? adminPlayers.map((n, i) => {
+        const safeText = n.replace(/&/g, '&amp;').replace(/</g, '&lt;');
+        return `<div class="tag">
+          ${safeText}
+          <span class="tag-x" data-ai="${i}" onclick="adminRemoveByIdx(this)">×</span>
+        </div>`;
+      }).join('')
     : '<span style="color:var(--muted);font-size:13px">No players</span>';
+}
+
+function adminRemoveByIdx(btn) {
+  const i = parseInt(btn.getAttribute('data-ai'));
+  adminRemovePlayer(adminPlayers[i]);
 }
 
 function nextRound() {

@@ -265,7 +265,7 @@
 <div id="root">
 
   <!-- ══ SETUP ══ -->
-  <div id="s-setup" class="screen show">
+  <div id="s-setup" class="screen">
     <div class="page-hdr">
       <h1>🕵️ Imposter Who?</h1>
       <p>Set up your game, then share the link</p>
@@ -337,6 +337,10 @@
       <button class="btn btn-accent" id="reveal-next-btn"
               onclick="nextRoundFromReveal()" style="display:none">
         ▶ Next Round
+      </button>
+      <button class="btn btn-ghost" id="reveal-newgame-btn"
+              onclick="confirmNewGame()" style="display:none">
+        ↺ New Game
       </button>
       <p class="no-peek">🙈 Don't show your screen to others!</p>
     </div>
@@ -444,7 +448,12 @@ ref.on('value', snap => {
   gameState = g;
 
   if (!g || g.status !== 'active' || !g.players?.length) {
-    if (!['s-admin', 's-reveal'].includes(currentScreen())) show('s-setup');
+    // Only redirect away from protected screens
+    if (!['s-admin', 's-reveal', 's-setup'].includes(currentScreen())) {
+      show('s-setup');
+    }
+    // First load: no screen shown yet → show setup
+    if (!currentScreen()) show('s-setup');
     return;
   }
 
@@ -530,8 +539,8 @@ function copyAndStart() {
   const words = raw.split('\n').map(w => w.trim()).filter(Boolean);
   if (!words.length) { showToast('⚠️ Add at least one word!', 'var(--red)'); return; }
 
-  const word     = words[Math.floor(Math.random() * words.length)];
-  const imposter = setupPlayers[Math.floor(Math.random() * setupPlayers.length)];
+  const word     = pickWord(words, null);
+  const imposter = pickImposter(setupPlayers, null);
 
   ref.set({
     status:          'active',
@@ -608,8 +617,10 @@ function renderReveal(g, name) {
     ? "Blend in — describe the word as if you know it without giving yourself away!"
     : "Describe this word without saying it directly. One of your friends is the imposter!";
 
-  // Show Next Round button only for the designated admin player
-  document.getElementById('reveal-next-btn').style.display = isAdminPlayer ? 'block' : 'none';
+  // Show admin controls only for the designated admin player
+  const d = isAdminPlayer ? 'block' : 'none';
+  document.getElementById('reveal-next-btn').style.display    = d;
+  document.getElementById('reveal-newgame-btn').style.display = d;
 }
 
 function goBack() {
@@ -617,23 +628,46 @@ function goBack() {
   show('s-names');
 }
 
+/* ── Helpers ──────────────────────────── */
+// Firebase can return arrays as plain objects {0:'a',1:'b'} — normalize to real array
+function toArr(v) {
+  if (!v) return [];
+  if (Array.isArray(v)) return v;
+  return Object.values(v);
+}
+
+// Pick a random word, never repeating the previous one
+function pickWord(words, prev) {
+  const pool = words.length > 1 ? words.filter(w => w !== prev) : words;
+  return pool[Math.floor(Math.random() * pool.length)];
+}
+
+// Pick a random imposter, never the same person twice in a row (with 3+ players)
+function pickImposter(players, prev) {
+  const pool = players.length > 2 ? players.filter(p => p !== prev) : players;
+  return pool[Math.floor(Math.random() * pool.length)];
+}
+
 /* ── Next round (from reveal screen, admin player) ── */
 function nextRoundFromReveal() {
   if (!gameState) return;
-  const words = gameState.wordList ?? [];
-  if (!words.length) { showToast('⚠️ No word list saved!', 'var(--red)'); return; }
+  const words   = toArr(gameState.wordList);
+  const players = toArr(gameState.players);
+  if (!words.length)   { showToast('⚠️ No word list found!', 'var(--red)'); return; }
+  if (!players.length) { showToast('⚠️ No players found!',   'var(--red)'); return; }
 
-  const word     = words[Math.floor(Math.random() * words.length)];
-  const players  = gameState.players ?? [];
-  const imposter = players[Math.floor(Math.random() * players.length)];
+  const word     = pickWord(words, gameState.currentWord);
+  const imposter = pickImposter(players, gameState.imposterName);
   const newRound = (gameState.round ?? 1) + 1;
+  const now      = Date.now();
 
-  ref.update({
-    currentWord:  word,
-    imposterName: imposter,
-    round:        newRound,
-    updatedAt:    Date.now()
-  });
+  // Optimistic local update so admin sees change immediately
+  gameState = { ...gameState, currentWord: word, imposterName: imposter, round: newRound, updatedAt: now };
+  renderReveal(gameState, myName);
+  document.getElementById('r-round').textContent    = `Round ${newRound}`;
+  document.getElementById('round-label').textContent = `Round ${newRound}`;
+
+  ref.update({ currentWord: word, imposterName: imposter, round: newRound, updatedAt: now });
 }
 
 /* ── Toast ────────────────────────────── */
@@ -666,10 +700,11 @@ function checkPin() {
 /* ── Admin panel ──────────────────────── */
 function enterAdmin() {
   if (!gameState) return;
-  adminPlayers = gameState.players ? [...gameState.players] : [];
+  adminPlayers = toArr(gameState.players);
   renderAdminTags();
-  if (gameState.wordList?.length) {
-    document.getElementById('aw-list').value = gameState.wordList.join('\n');
+  const wl = toArr(gameState.wordList);
+  if (wl.length) {
+    document.getElementById('aw-list').value = wl.join('\n');
   }
   if (gameState.currentWord) showAdminInfo(gameState.currentWord, gameState.imposterName);
   show('s-admin');
@@ -721,8 +756,8 @@ function nextRound() {
   const words = raw.split('\n').map(w => w.trim()).filter(Boolean);
   if (!words.length) { showToast('⚠️ Add at least one word!', 'var(--red)'); return; }
 
-  const word     = words[Math.floor(Math.random() * words.length)];
-  const imposter = adminPlayers[Math.floor(Math.random() * adminPlayers.length)];
+  const word     = pickWord(words, gameState?.currentWord);
+  const imposter = pickImposter(adminPlayers, gameState?.imposterName);
   const newRound = (gameState?.round ?? 1) + 1;
 
   ref.set({

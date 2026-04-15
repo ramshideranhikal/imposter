@@ -1,0 +1,580 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <title>Imposter Who?</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg:       #0d0d14;
+      --s1:       #16161f;
+      --s2:       #1f1f2e;
+      --accent:   #7c5cfc;
+      --red:      #ff4b4b;
+      --text:     #f0eeff;
+      --muted:    #7b7a99;
+      --r:        14px;
+    }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'Segoe UI', sans-serif;
+      min-height: 100svh;
+      display: flex;
+      justify-content: center;
+    }
+
+    #root {
+      width: 100%;
+      max-width: 430px;
+      min-height: 100svh;
+      display: flex;
+      flex-direction: column;
+      padding: 0 20px;
+    }
+
+    /* ── screens ─────────────────────────────── */
+    .screen { display: none; flex-direction: column; flex: 1; }
+    .screen.show { display: flex; }
+
+    /* ── loading ─────────────────────────────── */
+    #s-loading .center {
+      flex: 1; display: flex; flex-direction: column;
+      align-items: center; justify-content: center; gap: 16px;
+    }
+    .spin {
+      width: 42px; height: 42px;
+      border: 3px solid var(--s2);
+      border-top-color: var(--accent);
+      border-radius: 50%;
+      animation: spin 0.7s linear infinite;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* ── waiting ─────────────────────────────── */
+    #s-waiting .center {
+      flex: 1; display: flex; flex-direction: column;
+      align-items: center; justify-content: center;
+      gap: 14px; text-align: center;
+    }
+    #s-waiting .emoji { font-size: 64px; line-height: 1.1; }
+    #s-waiting h2 { font-size: 22px; font-weight: 800; }
+    #s-waiting p  { color: var(--muted); font-size: 14px; line-height: 1.6; max-width: 240px; }
+
+    /* ── name pick ───────────────────────────── */
+    .page-hdr { padding: 48px 0 20px; }
+    .page-hdr h1 { font-size: 26px; font-weight: 800; letter-spacing: -0.5px; }
+    .page-hdr p  { font-size: 14px; color: var(--muted); margin-top: 5px; }
+
+    .name-grid {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 10px;
+      padding-bottom: 28px;
+    }
+    .name-btn {
+      background: var(--s1);
+      border: 2px solid transparent;
+      border-radius: var(--r);
+      padding: 22px 10px;
+      color: var(--text);
+      font-size: 17px; font-weight: 700;
+      cursor: pointer; font-family: inherit;
+      transition: border-color 0.15s, transform 0.1s, background 0.1s;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .name-btn:hover  { border-color: var(--accent); }
+    .name-btn:active { transform: scale(0.95); background: var(--s2); }
+
+    /* ── reveal ──────────────────────────────── */
+    .back-btn {
+      background: none; border: none; color: var(--muted);
+      font-size: 15px; cursor: pointer; font-family: inherit;
+      padding: 16px 0 8px; display: flex; align-items: center; gap: 4px;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .reveal-wrap {
+      flex: 1; display: flex; flex-direction: column;
+      align-items: center; justify-content: center;
+      gap: 0; text-align: center; padding-bottom: 60px;
+    }
+    .reveal-bar {
+      width: 80px; height: 4px; border-radius: 2px;
+      background: var(--accent); margin-bottom: 28px;
+      transition: background 0.3s;
+    }
+    .reveal-bar.red { background: var(--red); }
+
+    .reveal-role {
+      font-size: 12px; font-weight: 700;
+      letter-spacing: 1.5px; text-transform: uppercase;
+      color: var(--muted); margin-bottom: 10px;
+    }
+    .reveal-word {
+      font-size: 54px; font-weight: 900;
+      letter-spacing: -1.5px; line-height: 1.05;
+      margin-bottom: 18px;
+    }
+    .reveal-word.red { color: var(--red); }
+    .reveal-tip {
+      font-size: 14px; color: var(--muted);
+      line-height: 1.65; max-width: 250px;
+    }
+    .no-peek {
+      text-align: center; font-size: 12px;
+      color: var(--muted); padding-bottom: 24px;
+    }
+
+    /* ── new-round banner ────────────────────── */
+    .new-round-banner {
+      position: fixed; top: 20px; left: 50%; transform: translateX(-50%) translateY(-80px);
+      background: var(--accent); color: #fff;
+      padding: 10px 20px; border-radius: 30px;
+      font-size: 14px; font-weight: 700;
+      transition: transform 0.35s cubic-bezier(0.34, 1.56, 0.64, 1);
+      z-index: 50; white-space: nowrap;
+    }
+    .new-round-banner.show { transform: translateX(-50%) translateY(0); }
+
+    /* ── admin ───────────────────────────────── */
+    .admin-hdr {
+      padding: 48px 0 16px;
+      display: flex; align-items: center; justify-content: space-between;
+    }
+    .admin-hdr h1 { font-size: 26px; font-weight: 800; }
+    .badge {
+      background: var(--accent); color: #fff;
+      font-size: 11px; font-weight: 700;
+      padding: 4px 10px; border-radius: 20px; letter-spacing: 0.3px;
+    }
+
+    .info-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 14px; }
+    .info-box  { background: var(--s2); border-radius: var(--r); padding: 14px 16px; }
+    .info-box .lbl { font-size: 11px; color: var(--muted); margin-bottom: 4px; font-weight: 600; letter-spacing: 0.5px; text-transform: uppercase; }
+    .info-box .val { font-size: 20px; font-weight: 800; letter-spacing: -0.5px; word-break: break-word; }
+
+    .card { background: var(--s1); border-radius: 20px; padding: 20px; margin-bottom: 14px; }
+    .sec-lbl {
+      font-size: 11px; font-weight: 700; letter-spacing: 1px;
+      text-transform: uppercase; color: var(--muted); margin-bottom: 12px;
+    }
+
+    .row  { display: flex; gap: 8px; }
+    input, textarea {
+      background: var(--s2); border: 2px solid transparent;
+      border-radius: var(--r); padding: 14px 16px;
+      color: var(--text); font-size: 15px; font-family: inherit;
+      width: 100%; outline: none;
+    }
+    input:focus, textarea:focus { border-color: var(--accent); }
+    ::placeholder { color: var(--muted); }
+    textarea { resize: vertical; min-height: 130px; line-height: 1.65; }
+
+    .add-btn {
+      background: var(--accent); color: #fff; border: none;
+      border-radius: var(--r); padding: 0 18px; font-size: 24px;
+      cursor: pointer; flex-shrink: 0;
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    .tags { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; min-height: 28px; }
+    .tag  {
+      background: var(--s2); border-radius: 30px;
+      padding: 6px 10px 6px 14px;
+      font-size: 14px; font-weight: 500;
+      display: flex; align-items: center; gap: 6px;
+    }
+    .tag-x {
+      color: var(--muted); cursor: pointer;
+      font-size: 19px; line-height: 1; padding: 0 2px;
+    }
+    .tag-x:hover { color: var(--red); }
+
+    .actions { display: flex; flex-direction: column; gap: 10px; padding-bottom: 36px; }
+
+    .btn {
+      width: 100%; padding: 16px; border-radius: var(--r);
+      border: none; font-size: 16px; font-weight: 700;
+      cursor: pointer; font-family: inherit;
+      transition: opacity 0.15s, transform 0.1s;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .btn:active { transform: scale(0.97); opacity: 0.88; }
+    .btn-accent { background: var(--accent); color: #fff; }
+    .btn-ghost  { background: transparent; color: var(--muted); font-size: 14px; }
+
+    /* ── gear ────────────────────────────────── */
+    #gear-btn {
+      position: fixed; bottom: 24px; right: 24px;
+      width: 46px; height: 46px; border-radius: 50%;
+      background: var(--s1); border: none;
+      color: var(--muted); font-size: 18px; cursor: pointer;
+      display: flex; align-items: center; justify-content: center;
+      opacity: 0.3; transition: opacity 0.2s;
+      box-shadow: 0 4px 16px rgba(0,0,0,0.5);
+      -webkit-tap-highlight-color: transparent;
+    }
+    #gear-btn:hover { opacity: 0.8; }
+
+    /* ── pin overlay ─────────────────────────── */
+    .overlay {
+      position: fixed; inset: 0; z-index: 200;
+      background: rgba(0,0,0,0.8); backdrop-filter: blur(8px);
+      display: flex; align-items: center; justify-content: center; padding: 24px;
+    }
+    .overlay.off { display: none; }
+    .pin-card {
+      background: var(--s1); border-radius: 24px; padding: 32px 24px;
+      width: 100%; max-width: 320px; text-align: center;
+    }
+    .pin-card h3 { font-size: 22px; font-weight: 800; margin-bottom: 6px; }
+    .pin-card p  { color: var(--muted); font-size: 14px; margin-bottom: 24px; }
+    #pin-input {
+      text-align: center; font-size: 34px; letter-spacing: 12px;
+      padding: 14px; margin-bottom: 8px;
+    }
+    .pin-err { color: var(--red); font-size: 13px; margin-bottom: 12px; min-height: 18px; }
+  </style>
+</head>
+<body>
+<div id="root">
+
+  <!-- LOADING -->
+  <div id="s-loading" class="screen show">
+    <div class="center">
+      <div class="spin"></div>
+      <p style="color:var(--muted);font-size:14px">Connecting…</p>
+    </div>
+  </div>
+
+  <!-- WAITING -->
+  <div id="s-waiting" class="screen">
+    <div class="center">
+      <div class="emoji">🕵️</div>
+      <h2>Game not started yet</h2>
+      <p>The admin hasn't kicked things off. Hang tight!</p>
+    </div>
+  </div>
+
+  <!-- NAME PICK -->
+  <div id="s-names" class="screen">
+    <div class="page-hdr">
+      <h1>🕵️ Imposter Who?</h1>
+      <p>Tap your name to see your role</p>
+    </div>
+    <div id="name-grid" class="name-grid"></div>
+  </div>
+
+  <!-- REVEAL -->
+  <div id="s-reveal" class="screen">
+    <button class="back-btn" onclick="goBack()">‹ Back</button>
+    <div class="reveal-wrap">
+      <div class="reveal-bar" id="r-bar"></div>
+      <div class="reveal-role" id="r-role"></div>
+      <div class="reveal-word" id="r-word"></div>
+      <div class="reveal-tip"  id="r-tip"></div>
+    </div>
+    <p class="no-peek">🙈 Don't show your screen to others!</p>
+  </div>
+
+  <!-- ADMIN -->
+  <div id="s-admin" class="screen">
+    <div class="admin-hdr">
+      <h1>Admin</h1>
+      <span class="badge">🔒 Admin</span>
+    </div>
+
+    <!-- live game info (hidden until first round) -->
+    <div id="admin-info" class="info-grid" style="display:none">
+      <div class="info-box">
+        <div class="lbl">Current Word</div>
+        <div class="val" id="ai-word">—</div>
+      </div>
+      <div class="info-box">
+        <div class="lbl">Imposter</div>
+        <div class="val" id="ai-imp">—</div>
+      </div>
+    </div>
+
+    <!-- players -->
+    <div class="card">
+      <div class="sec-lbl">Players</div>
+      <div class="row">
+        <input type="text" id="p-input" placeholder="Enter a name…"
+               onkeydown="if(event.key==='Enter')addPlayer()">
+        <button class="add-btn" onclick="addPlayer()">+</button>
+      </div>
+      <div class="tags" id="p-tags">
+        <span style="color:var(--muted);font-size:13px">No players yet</span>
+      </div>
+    </div>
+
+    <!-- word list -->
+    <div class="card">
+      <div class="sec-lbl">Word List — one word per line</div>
+      <textarea id="w-list"
+        placeholder="Pizza&#10;Football&#10;Guitar&#10;Tokyo&#10;Submarine&#10;Elephant&#10;Cinema&#10;…"></textarea>
+    </div>
+
+    <!-- actions -->
+    <div class="actions">
+      <button class="btn btn-accent" onclick="startRound()">▶ Start / Next Round</button>
+      <button class="btn btn-ghost"  onclick="show('s-names')">← Back to player view</button>
+    </div>
+  </div>
+
+</div>
+
+<!-- new-round toast -->
+<div class="new-round-banner" id="toast">🔄 New round started!</div>
+
+<!-- gear trigger -->
+<button id="gear-btn" onclick="openPin()" title="Admin">⚙</button>
+
+<!-- PIN overlay -->
+<div class="overlay off" id="pin-overlay">
+  <div class="pin-card">
+    <h3>Admin Access</h3>
+    <p>Enter the 4-digit admin PIN</p>
+    <input type="password" id="pin-input" maxlength="4"
+           inputmode="numeric" placeholder="••••"
+           oninput="checkPin()" autocomplete="off">
+    <div class="pin-err" id="pin-err"></div>
+    <button class="btn btn-ghost" onclick="closePin()">Cancel</button>
+  </div>
+</div>
+
+<!-- ─── Firebase SDK ───────────────────────────────────────────────── -->
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-database-compat.js"></script>
+
+<script>
+/* ═══════════════════════════════════════════════════════════════════════
+   STEP 1 — Paste your Firebase project config here.
+   Get it from: Firebase Console → Project Settings → Your apps → SDK setup
+   ═══════════════════════════════════════════════════════════════════════ */
+// Import the functions you need from the SDKs you need
+import { initializeApp } from "firebase/app";
+// TODO: Add SDKs for Firebase products that you want to use
+// https://firebase.google.com/docs/web/setup#available-libraries
+
+// Your web app's Firebase configuration
+const firebaseConfig = {
+  apiKey: "AIzaSyDEKyWhI-75_IkPX3p1nWaFKtQQUbNHZS4",
+  authDomain: "impostergame-8b419.firebaseapp.com",
+  databaseURL: "https://impostergame-8b419-default-rtdb.firebaseio.com",
+  projectId: "impostergame-8b419",
+  storageBucket: "impostergame-8b419.firebasestorage.app",
+  messagingSenderId: "508611034053",
+  appId: "1:508611034053:web:f5952bd908782f0b55e9ac"
+};
+
+// Initialize Firebase
+const app = initializeApp(firebaseConfig);
+
+/* ═══════════════════════════════════════════════════════════════════════
+   STEP 2 — Set your admin PIN (4 digits).
+   ═══════════════════════════════════════════════════════════════════════ */
+const ADMIN_PIN = "1234";
+
+/* ══════════════════════════════ init ══════════════════════════════════ */
+firebase.initializeApp(FIREBASE_CONFIG);
+const db  = firebase.database();
+const ref = db.ref('imposter/game');
+
+let adminPlayers = [];   // admin's working player list
+let myName       = null; // name the player tapped
+let lastUpdatedAt = null; // detect new rounds for toast
+
+/* ── Screen helpers ──────────────────────────────────────────────────── */
+function show(id) {
+  document.querySelectorAll('.screen').forEach(s => s.classList.remove('show'));
+  document.getElementById(id).classList.add('show');
+  // Hide the gear button inside admin panel (no need there)
+  document.getElementById('gear-btn').style.display =
+    id === 's-admin' ? 'none' : 'flex';
+}
+
+function currentScreen() {
+  return document.querySelector('.screen.show')?.id ?? '';
+}
+
+/* ── Real-time Firebase listener ─────────────────────────────────────── */
+ref.on('value', snap => {
+  const g = snap.val();
+
+  // No game data or game not active → waiting screen
+  if (!g || g.status !== 'active' || !g.players?.length) {
+    if (!['s-admin', 's-reveal'].includes(currentScreen())) {
+      show('s-waiting');
+    }
+    return;
+  }
+
+  // Rebuild name grid with latest players
+  buildNameGrid(g.players);
+
+  // If player is on reveal screen, update their word live (new round)
+  if (myName && currentScreen() === 's-reveal') {
+    // Show toast if this is a new round
+    if (lastUpdatedAt && g.updatedAt !== lastUpdatedAt) {
+      showToast();
+    }
+    renderReveal(g, myName);
+  }
+
+  // Update admin info boxes if admin is watching
+  if (currentScreen() === 's-admin') {
+    showAdminInfo(g.currentWord, g.imposterName);
+  }
+
+  // Move away from loading/waiting screens once game is live
+  if (['s-loading', 's-waiting'].includes(currentScreen())) {
+    show('s-names');
+  }
+
+  lastUpdatedAt = g.updatedAt;
+});
+
+/* ── Name grid ───────────────────────────────────────────────────────── */
+function buildNameGrid(names) {
+  document.getElementById('name-grid').innerHTML = names
+    .map(n => `<button class="name-btn" onclick="pickName(${JSON.stringify(n)})">${n}</button>`)
+    .join('');
+}
+
+function pickName(name) {
+  myName = name;
+  ref.once('value', s => {
+    const g = s.val();
+    if (g) renderReveal(g, name);
+  });
+  show('s-reveal');
+}
+
+function renderReveal(g, name) {
+  const isImposter = g.imposterName === name;
+  document.getElementById('r-bar').className  = 'reveal-bar' + (isImposter ? ' red' : '');
+  document.getElementById('r-role').textContent = isImposter ? '⚠️  You are the' : 'The secret word is';
+  document.getElementById('r-word').textContent = isImposter ? 'IMPOSTER' : g.currentWord;
+  document.getElementById('r-word').className   = 'reveal-word' + (isImposter ? ' red' : '');
+  document.getElementById('r-tip').textContent  = isImposter
+    ? "Blend in — describe a word as if you know it without giving yourself away!"
+    : "Describe this word without saying it directly. One of your friends is the imposter!";
+}
+
+function goBack() {
+  myName = null;
+  show('s-names');
+}
+
+/* ── Toast ───────────────────────────────────────────────────────────── */
+function showToast() {
+  const t = document.getElementById('toast');
+  t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 2500);
+}
+
+/* ── Admin: PIN ──────────────────────────────────────────────────────── */
+function openPin() {
+  document.getElementById('pin-input').value = '';
+  document.getElementById('pin-err').textContent = '';
+  document.getElementById('pin-overlay').classList.remove('off');
+  setTimeout(() => document.getElementById('pin-input').focus(), 80);
+}
+function closePin() {
+  document.getElementById('pin-overlay').classList.add('off');
+}
+function checkPin() {
+  const v = document.getElementById('pin-input').value;
+  if (v.length < 4) return;
+  if (v === ADMIN_PIN) {
+    closePin();
+    enterAdmin();
+  } else {
+    document.getElementById('pin-err').textContent = 'Wrong PIN, try again';
+    document.getElementById('pin-input').value = '';
+  }
+}
+
+/* ── Admin: enter panel ──────────────────────────────────────────────── */
+function enterAdmin() {
+  ref.once('value', s => {
+    const g = s.val() || {};
+    adminPlayers = g.players ? [...g.players] : [];
+    renderTags();
+    if (g.wordList?.length) {
+      document.getElementById('w-list').value = g.wordList.join('\n');
+    }
+    if (g.currentWord) showAdminInfo(g.currentWord, g.imposterName);
+    show('s-admin');
+  });
+}
+
+function showAdminInfo(word, imp) {
+  document.getElementById('admin-info').style.display = 'grid';
+  document.getElementById('ai-word').textContent = word || '—';
+  document.getElementById('ai-imp').textContent  = imp  || '—';
+}
+
+/* ── Admin: players ──────────────────────────────────────────────────── */
+function addPlayer() {
+  const inp = document.getElementById('p-input');
+  const n   = inp.value.trim();
+  if (!n || adminPlayers.includes(n)) { inp.value = ''; return; }
+  adminPlayers.push(n);
+  inp.value = '';
+  renderTags();
+  ref.update({ players: adminPlayers, status: 'active' });
+}
+
+function removePlayer(n) {
+  adminPlayers = adminPlayers.filter(p => p !== n);
+  renderTags();
+  ref.update({ players: adminPlayers });
+}
+
+function renderTags() {
+  const el = document.getElementById('p-tags');
+  el.innerHTML = adminPlayers.length
+    ? adminPlayers.map(n =>
+        `<div class="tag">${n}
+           <span class="tag-x" onclick="removePlayer(${JSON.stringify(n)})">×</span>
+         </div>`
+      ).join('')
+    : '<span style="color:var(--muted);font-size:13px">No players yet</span>';
+}
+
+/* ── Admin: start round ──────────────────────────────────────────────── */
+function startRound() {
+  if (adminPlayers.length < 2) {
+    alert('Add at least 2 players first!');
+    return;
+  }
+  const raw   = document.getElementById('w-list').value.trim();
+  const words = raw.split('\n').map(w => w.trim()).filter(Boolean);
+  if (!words.length) {
+    alert('Add at least one word to the list!');
+    return;
+  }
+
+  const word     = words[Math.floor(Math.random() * words.length)];
+  const imposter = adminPlayers[Math.floor(Math.random() * adminPlayers.length)];
+
+  ref.set({
+    status:       'active',
+    players:      adminPlayers,
+    wordList:     words,
+    currentWord:  word,
+    imposterName: imposter,
+    updatedAt:    Date.now()
+  });
+
+  showAdminInfo(word, imposter);
+}
+</script>
+</body>
+</html>

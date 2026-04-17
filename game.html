@@ -1,0 +1,419 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <title>Imposter Who?</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --bg: #fafafa; --card: #ffffff; --border: #e4e4e7;
+      --accent: #18181b; --accent-fg: #fafafa; --s2: #52525b;
+      --red: #dc2626; --green: #16a34a;
+      --text: #18181b; --muted: #71717a; --muted-bg: #f4f4f5; --r: 8px;
+    }
+    body {
+      background: var(--bg); color: var(--text);
+      font-family: -apple-system, BlinkMacSystemFont, 'Inter', 'Segoe UI', sans-serif;
+      min-height: 100svh; display: flex; justify-content: center;
+    }
+    #root {
+      width: 100%; max-width: 430px; min-height: 100svh;
+      display: flex; flex-direction: column; padding: 0 20px;
+    }
+    .screen { display: none; flex-direction: column; flex: 1; }
+    .screen.show { display: flex; }
+
+    /* ── center states (waiting / error) ── */
+    .center-state {
+      flex: 1; display: flex; flex-direction: column;
+      align-items: center; justify-content: center;
+      gap: 10px; text-align: center; padding-bottom: 60px;
+    }
+    .center-state .emoji { font-size: 48px; line-height: 1.1; }
+    .center-state h2 { font-size: 20px; font-weight: 700; }
+    .center-state p  { color: var(--muted); font-size: 14px; line-height: 1.6; max-width: 240px; }
+
+    /* ── name grid ────────────────────── */
+    .page-hdr { padding: 48px 0 20px; }
+    .page-hdr h1 { font-size: 22px; font-weight: 700; letter-spacing: -0.4px; }
+    .page-hdr p  { font-size: 13px; color: var(--muted); margin-top: 4px; }
+
+    .name-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px; }
+    .name-btn {
+      background: var(--card); border: 1px solid var(--border);
+      border-radius: 10px; padding: 20px 10px;
+      color: var(--text); font-size: 16px; font-weight: 600;
+      cursor: pointer; font-family: inherit; position: relative;
+      transition: border-color 0.15s, background 0.15s, transform 0.1s;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .name-btn:hover  { border-color: var(--accent); background: var(--muted-bg); }
+    .name-btn:active { transform: scale(0.96); background: var(--muted-bg); }
+    .crown-flag { position: absolute; top: 6px; right: 8px; font-size: 12px; opacity: 0.6; }
+
+    .round-badge { text-align: center; margin: 16px 0 10px; }
+    .round-badge span {
+      background: var(--muted-bg); color: var(--muted); border: 1px solid var(--border);
+      font-size: 12px; font-weight: 600;
+      padding: 4px 14px; border-radius: 20px; letter-spacing: 0.3px;
+    }
+
+    /* ── reveal ───────────────────────── */
+    .back-btn {
+      background: none; border: none; color: var(--muted); font-size: 14px;
+      cursor: pointer; font-family: inherit;
+      padding: 16px 0 8px; display: flex; align-items: center; gap: 4px;
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    .reveal-top { text-align: center; margin-bottom: 20px; }
+    .reveal-player-name {
+      font-size: 18px; font-weight: 700; letter-spacing: 0.5px;
+      text-transform: uppercase; color: var(--text); margin-bottom: 6px;
+    }
+    .reveal-round span {
+      background: var(--muted-bg); color: var(--muted); border: 1px solid var(--border);
+      font-size: 11px; font-weight: 600; letter-spacing: 0.3px;
+      padding: 4px 12px; border-radius: 20px;
+    }
+
+    .reveal-wrap {
+      flex: 1; display: flex; flex-direction: column;
+      align-items: center; justify-content: center; text-align: center;
+    }
+    .reveal-bar {
+      width: 48px; height: 3px; border-radius: 2px;
+      background: var(--accent); margin-bottom: 24px; transition: background 0.3s;
+    }
+    .reveal-bar.red { background: var(--red); }
+    .reveal-role {
+      font-size: 11px; font-weight: 600; letter-spacing: 1px;
+      text-transform: uppercase; color: var(--muted); margin-bottom: 8px;
+    }
+    .reveal-word {
+      font-size: 48px; font-weight: 800; letter-spacing: -1.5px;
+      line-height: 1.05; margin-bottom: 20px; color: var(--text);
+    }
+    .reveal-word.red { color: var(--red); }
+
+    .refresh-btn {
+      background: var(--muted-bg); border: 1px solid var(--border); color: var(--muted);
+      font-size: 12px; font-weight: 600; padding: 6px 16px;
+      border-radius: 20px; cursor: pointer; font-family: inherit;
+      display: flex; align-items: center; gap: 5px;
+      -webkit-tap-highlight-color: transparent; transition: background 0.15s;
+    }
+    .refresh-btn:active { background: var(--border); }
+
+    .reveal-footer {
+      padding-bottom: 32px; display: flex;
+      flex-direction: column; align-items: center; gap: 10px;
+    }
+    .btn-next {
+      width: 100%; padding: 12px; border-radius: var(--r); border: none;
+      font-size: 14px; font-weight: 600; cursor: pointer; font-family: inherit;
+      background: var(--accent); color: var(--accent-fg);
+      -webkit-tap-highlight-color: transparent;
+      transition: opacity 0.15s, transform 0.1s;
+    }
+    .btn-next:active { transform: scale(0.97); opacity: 0.85; }
+    .small-link {
+      background: none; border: none; color: var(--muted); font-size: 13px;
+      cursor: pointer; font-family: inherit;
+      text-decoration: underline; text-underline-offset: 3px;
+    }
+
+    /* ── toast ────────────────────────── */
+    .toast {
+      position: fixed; top: 20px; left: 50%;
+      transform: translateX(-50%) translateY(-80px);
+      padding: 8px 16px; border-radius: 6px;
+      font-size: 13px; font-weight: 600; color: #fff;
+      transition: transform 0.3s cubic-bezier(0.34,1.56,0.64,1);
+      z-index: 50; white-space: nowrap; pointer-events: none;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.12);
+    }
+    .toast.show { transform: translateX(-50%) translateY(0); }
+  </style>
+</head>
+<body>
+<div id="root">
+
+  <!-- ERROR: no game ID in URL -->
+  <div id="s-error" class="screen">
+    <div class="center-state">
+      <div class="emoji">🔗</div>
+      <h2>Invalid link</h2>
+      <p>Ask the admin to share the correct game link.</p>
+    </div>
+  </div>
+
+  <!-- WAITING: game not started yet -->
+  <div id="s-waiting" class="screen">
+    <div class="center-state">
+      <div class="emoji">🕵️</div>
+      <h2>Waiting to start</h2>
+      <p>The admin hasn't launched the game yet. Hang tight!</p>
+    </div>
+  </div>
+
+  <!-- NAME GRID -->
+  <div id="s-names" class="screen">
+    <div class="page-hdr">
+      <h1>🕵️ Imposter Who?</h1>
+      <p>Tap your name to see your role</p>
+    </div>
+    <div id="name-grid" class="name-grid"></div>
+    <div class="round-badge"><span id="round-label">Round 1</span></div>
+    <div style="flex:1"></div>
+  </div>
+
+  <!-- REVEAL -->
+  <div id="s-reveal" class="screen">
+    <button class="back-btn" onclick="goBack()">‹ Back</button>
+
+    <div class="reveal-top">
+      <div class="reveal-player-name" id="r-player-name"></div>
+      <div class="reveal-round"><span id="r-round">Round 1</span></div>
+    </div>
+
+    <div class="reveal-wrap">
+      <div class="reveal-bar" id="r-bar"></div>
+      <div class="reveal-role" id="r-role"></div>
+      <div class="reveal-word" id="r-word"></div>
+      <button class="refresh-btn" onclick="refreshReveal()">↺ Refresh</button>
+    </div>
+
+    <div class="reveal-footer">
+      <button class="btn-next" id="reveal-next-btn" onclick="nextRound()" style="display:none">
+        ▶ Next Round
+      </button>
+      <button class="small-link" id="reveal-newgame-btn" onclick="confirmNewGame()" style="display:none">
+        ↺ start a new game
+      </button>
+    </div>
+  </div>
+
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-database-compat.js"></script>
+<script>
+const firebaseConfig = {
+  apiKey: "AIzaSyDEKyWhI-75_IkPX3p1nWaFKtQQUbNHZS4",
+  authDomain: "impostergame-8b419.firebaseapp.com",
+  databaseURL: "https://impostergame-8b419-default-rtdb.firebaseio.com",
+  projectId: "impostergame-8b419",
+  storageBucket: "impostergame-8b419.firebasestorage.app",
+  messagingSenderId: "508611034053",
+  appId: "1:508611034053:web:f5952bd908782f0b55e9ac"
+};
+firebase.initializeApp(firebaseConfig);
+const db = firebase.database();
+
+/* ── Read game ID from URL ─────── */
+const gameId = new URLSearchParams(window.location.search).get('id');
+if (!gameId) {
+  document.getElementById('s-error').classList.add('show');
+}
+
+const ref = gameId ? db.ref(`imposter/games/${gameId}`) : null;
+
+let gameState     = null;
+let myName        = null;
+let lastUpdatedAt = null;
+
+/* ── word list ─────────────────── */
+const WORDS = [
+  "Titanic","First night","Tyre","Dosa","Fan","Elephant","Weed","Cigarette","Alcohol","Camera",
+  "War","Donald Trump","America","Missile","Petrol","Shower","Poop","Fish","Dinosaur","Snake",
+  "Everest","Moon","Astronaut","Mahabali","Modiji","Pinarayi Vijayan","Rain","PJ (Poor Joke)",
+  "Earthquake","Tsunami","Tiger","Lion","Shark","Oxygen","Fire","Train","Police","Doctor",
+  "Whistle","Computer","Kitchen","Father","Mother","Appam","Auto rickshaw","Tea","Parotta",
+  "Buffalo","Story","Crow","Curry","Family","Bottle","Lunch","Newspaper","Microphone","Bomb",
+  "Helmet","Window","Bridge","Phone","Firecracker","Temple","Church","Mosque","Market","Bus",
+  "Truck","Laptop","Speaker","Knife","Mango","Coconut","Umbrella","Hospital","Teacher","Student",
+  "Book","Pen","Boat","Biryani","Jeans","Laptop bag","Hair","Gas cylinder","Ship","Mandi",
+  "Zepto","Uno","Crocs","Kozhi","Premam (Love)","Trouser","Shirt","Fridge","Shoes","Lipstick",
+  "Lake","Park","Mustache","Passport","Ticket","Suitcase","Hotel","Beach","Sun","Cloud",
+  "Rainbow","Forest","Desert","Island","Snow","Clock","Watch","Calendar","Mirror","Chair",
+  "Table","Bed","Pillow","Blanket","Door","Lock","Key","Wallet","Money","Coin","Gold","Silver",
+  "Diamond","Ring","Necklace","Charger","Keyboard","Mouse","Screen","TV","Remote","Chess",
+  "Football","Cricket","Bat","Referee","Goal","Medal","Gym","Yoga","Pizza","Burger","Soup",
+  "Salad","Ice cream","Chocolate","Coffee","Juice","Milk","Water","Plate","Spoon","Fork",
+  "Driver","King","Queen","Soldier","Scientist","Stapler","Pickle","Pigeon","Toothbrush",
+  "Pepper","Glove","Calculator","Battery","Scarf","Socks","Helicopter","Ink","Screwdriver",
+  "Pyramid","Ladder","Sticker","Magnet","Curtain","Binoculars","Eraser","Chain","Shovel",
+  "Notebook","Flashlight","Hanger","Rope"
+];
+
+function shuffle(arr) {
+  const a = [...arr];
+  for (let i = a.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [a[i], a[j]] = [a[j], a[i]];
+  }
+  return a;
+}
+
+/* ── helpers ───────────────────── */
+function toArr(v) {
+  if (!v) return [];
+  if (Array.isArray(v)) return v;
+  return Object.values(v);
+}
+function pickImposter(players, prev) {
+  const pool = players.length > 2 ? players.filter(p => p !== prev) : players;
+  return pool[Math.floor(Math.random() * pool.length)];
+}
+
+/* ── screen ────────────────────── */
+function show(id) {
+  document.querySelectorAll('.screen').forEach(s => s.classList.remove('show'));
+  document.getElementById(id).classList.add('show');
+}
+function currentScreen() {
+  return document.querySelector('.screen.show')?.id ?? '';
+}
+
+/* ── Firebase listener ─────────── */
+if (ref) {
+  ref.on('value', snap => {
+    const g = snap.val();
+    gameState = g;
+
+    if (!g || g.status !== 'active' || !toArr(g.players).length) {
+      if (currentScreen() !== 's-reveal') show('s-waiting');
+      if (!currentScreen()) show('s-waiting');
+      return;
+    }
+
+    const round = g.round ?? 1;
+    buildNameGrid(toArr(g.players), g.adminPlayerName);
+    document.getElementById('round-label').textContent = `Round ${round}`;
+    document.getElementById('r-round').textContent     = `Round ${round}`;
+
+    if (myName && currentScreen() === 's-reveal') {
+      if (lastUpdatedAt && g.updatedAt !== lastUpdatedAt) {
+        showToast('🔄 New round!', 'var(--accent)');
+      }
+      renderReveal(g, myName);
+    }
+
+    if (!currentScreen() || currentScreen() === 's-waiting') show('s-names');
+
+    lastUpdatedAt = g.updatedAt;
+  });
+}
+
+/* ── name grid ─────────────────── */
+function buildNameGrid(names, adminPlayerName) {
+  document.getElementById('name-grid').innerHTML = names.map(n => {
+    const isAdmin  = n === adminPlayerName;
+    const safeAttr = n.replace(/&/g, '&amp;').replace(/"/g, '&quot;');
+    const safeText = n.replace(/&/g, '&amp;').replace(/</g, '&lt;');
+    return `<button class="name-btn" data-name="${safeAttr}" onclick="handleNameTap(this)">
+      ${isAdmin ? '<span class="crown-flag">👑</span>' : ''}
+      ${safeText}
+    </button>`;
+  }).join('');
+}
+
+function handleNameTap(btn) { pickName(btn.getAttribute('data-name')); }
+
+function pickName(name) {
+  if (!gameState) { showToast('Still connecting…', 'var(--s2)'); return; }
+  myName = name;
+  renderReveal(gameState, name);
+  show('s-reveal');
+}
+
+/* ── reveal ────────────────────── */
+function renderReveal(g, name) {
+  const isImposter    = g.imposterName === name;
+  const isAdminPlayer = g.adminPlayerName === name;
+  const round         = g.round ?? 1;
+
+  document.getElementById('r-player-name').textContent = name;
+  document.getElementById('r-round').textContent       = `Round ${round}`;
+  document.getElementById('r-bar').className           = 'reveal-bar' + (isImposter ? ' red' : '');
+  document.getElementById('r-role').textContent        = isImposter ? '⚠️  You are the' : 'The secret word is';
+  document.getElementById('r-word').textContent        = isImposter ? 'IMPOSTER' : g.currentWord;
+  document.getElementById('r-word').className          = 'reveal-word' + (isImposter ? ' red' : '');
+
+  const d = isAdminPlayer ? 'block' : 'none';
+  document.getElementById('reveal-next-btn').style.display    = d;
+  document.getElementById('reveal-newgame-btn').style.display = d;
+}
+
+function refreshReveal() {
+  if (!ref) return;
+  ref.once('value', s => {
+    const g = s.val();
+    if (!g || !myName) return;
+    gameState = g;
+    renderReveal(g, myName);
+    showToast('↺ Refreshed', 'var(--s2)');
+  });
+}
+
+function goBack() { myName = null; show('s-names'); }
+
+/* ── next round ─────────────────── */
+function nextRound() {
+  if (!gameState || !ref) return;
+  const players = toArr(gameState.players);
+  if (!players.length) { showToast('⚠️ Missing data', 'var(--red)'); return; }
+
+  let queue    = toArr(gameState.wordQueue);
+  let idx      = gameState.wordIndex ?? 0;
+  let newIdx   = idx + 1;
+  let newQueue = null;
+
+  // Exhausted all words — reshuffle for a fresh random sequence
+  if (newIdx >= queue.length) {
+    newQueue = shuffle(WORDS);
+    newIdx   = 0;
+    queue    = newQueue;
+  }
+
+  const word     = queue[newIdx];
+  const imposter = pickImposter(players, gameState.imposterName);
+  const newRound = (gameState.round ?? 1) + 1;
+  const now      = Date.now();
+
+  const update = { currentWord: word, imposterName: imposter, round: newRound,
+                   wordIndex: newIdx, updatedAt: now };
+  if (newQueue) update.wordQueue = newQueue;
+
+  // Optimistic update — admin sees change instantly without waiting for Firebase
+  gameState = { ...gameState, ...update };
+  renderReveal(gameState, myName);
+  document.getElementById('r-round').textContent     = `Round ${newRound}`;
+  document.getElementById('round-label').textContent = `Round ${newRound}`;
+
+  ref.update(update);
+}
+
+/* ── new game ───────────────────── */
+function confirmNewGame() {
+  if (!confirm('End this game for everyone?')) return;
+  if (ref) ref.remove();
+  // Open the admin setup page in a new tab so admin can create a fresh game
+  const indexUrl = window.location.href.replace(/\/game\.html.*$/, '/index.html');
+  window.open(indexUrl, '_blank');
+}
+
+/* ── toast ──────────────────────── */
+function showToast(msg, color) {
+  const t = document.getElementById('toast');
+  t.textContent = msg; t.style.background = color || 'var(--accent)';
+  t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 2000);
+}
+</script>
+</body>
+</html>

@@ -1,0 +1,364 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <title>Imposter Who? — Admin</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --bg: #fafafa; --card: #ffffff; --border: #e4e4e7;
+      --accent: #18181b; --accent-fg: #fafafa; --s2: #52525b;
+      --red: #dc2626; --green: #16a34a; --gold: #d97706;
+      --text: #18181b; --muted: #71717a; --muted-bg: #f4f4f5; --r: 8px;
+    }
+    body {
+      background: var(--bg); color: var(--text);
+      font-family: -apple-system, BlinkMacSystemFont, 'Inter', 'Segoe UI', sans-serif;
+      min-height: 100svh; display: flex; justify-content: center;
+    }
+    #root {
+      width: 100%; max-width: 430px; min-height: 100svh;
+      display: flex; flex-direction: column; padding: 0 20px;
+    }
+
+    /* ── states ───────────────── */
+    .state { display: none; flex-direction: column; flex: 1; }
+    .state.show { display: flex; }
+
+    /* ── landing ──────────────── */
+    #st-landing .body {
+      flex: 1; display: flex; flex-direction: column;
+      align-items: center; justify-content: center;
+      gap: 8px; text-align: center; padding-bottom: 60px;
+    }
+    .landing-emoji { font-size: 48px; line-height: 1; margin-bottom: 8px; }
+    .landing-title { font-size: 26px; font-weight: 700; letter-spacing: -0.5px; }
+    .landing-sub   { font-size: 14px; color: var(--muted); }
+
+    /* ── setup ────────────────── */
+    .page-hdr { padding: 48px 0 20px; }
+    .page-hdr h1 { font-size: 22px; font-weight: 700; letter-spacing: -0.4px; }
+    .page-hdr p  { font-size: 13px; color: var(--muted); margin-top: 4px; }
+
+    .card {
+      background: var(--card); border: 1px solid var(--border);
+      border-radius: 12px; padding: 16px; margin-bottom: 12px;
+    }
+    .sec-lbl {
+      font-size: 11px; font-weight: 600; letter-spacing: 0.8px;
+      text-transform: uppercase; color: var(--muted); margin-bottom: 10px;
+    }
+    .row { display: flex; gap: 8px; }
+    input {
+      background: var(--bg); border: 1px solid var(--border);
+      border-radius: var(--r); padding: 10px 14px;
+      color: var(--text); font-size: 14px; font-family: inherit; width: 100%; outline: none;
+      transition: border-color 0.15s, box-shadow 0.15s;
+    }
+    input:focus {
+      border-color: var(--accent);
+      box-shadow: 0 0 0 3px rgba(24,24,27,0.07);
+    }
+    ::placeholder { color: var(--muted); }
+    .add-btn {
+      background: var(--accent); color: var(--accent-fg); border: none;
+      border-radius: var(--r); padding: 0 16px; font-size: 20px;
+      cursor: pointer; flex-shrink: 0; -webkit-tap-highlight-color: transparent;
+      transition: opacity 0.15s;
+    }
+    .add-btn:active { opacity: 0.75; }
+    .tags { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; min-height: 28px; }
+    .tag {
+      background: var(--muted-bg); border: 1px solid var(--border);
+      border-radius: 6px; padding: 5px 8px 5px 12px; font-size: 13px; font-weight: 500;
+      display: flex; align-items: center; gap: 4px; color: var(--text);
+    }
+    .tag.is-admin { background: #fffbeb; border-color: #fcd34d; }
+    .crown-btn {
+      background: none; border: none; cursor: pointer; font-size: 13px;
+      padding: 0 2px; line-height: 1; opacity: 0.3; transition: opacity 0.15s;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .tag.is-admin .crown-btn { opacity: 1; }
+    .tag-x { color: var(--muted); cursor: pointer; font-size: 16px; line-height: 1; padding: 0 2px; }
+    .tag-x:hover { color: var(--red); }
+    .crown-hint { font-size: 12px; color: var(--muted); margin-top: 8px; display: flex; align-items: center; gap: 4px; }
+
+    /* ── buttons ──────────────── */
+    .btn {
+      padding: 12px 16px; border-radius: var(--r); border: none;
+      font-size: 14px; font-weight: 600; cursor: pointer; font-family: inherit;
+      transition: opacity 0.15s, transform 0.1s;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .btn-full { width: 100%; }
+    .btn:active { transform: scale(0.98); opacity: 0.8; }
+    .btn-accent { background: var(--accent); color: var(--accent-fg); }
+    .btn-ghost  { background: transparent; color: var(--muted); font-size: 13px; }
+    .actions { display: flex; flex-direction: column; gap: 8px; padding-bottom: 36px; }
+
+    /* ── started state ────────── */
+    #st-started .body {
+      flex: 1; display: flex; flex-direction: column;
+      align-items: center; justify-content: center;
+      gap: 0; text-align: center; padding-bottom: 60px;
+    }
+    .success-icon { font-size: 48px; margin-bottom: 14px; }
+    .success-title { font-size: 22px; font-weight: 700; margin-bottom: 6px; }
+    .success-sub   { font-size: 13px; color: var(--muted); margin-bottom: 24px; line-height: 1.6; }
+    .copy-again-btn {
+      background: var(--card); border: 1px solid var(--border); color: var(--text);
+      font-size: 14px; font-weight: 600; padding: 10px 24px;
+      border-radius: var(--r); cursor: pointer; font-family: inherit;
+      margin-bottom: 28px; transition: background 0.15s;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .copy-again-btn:active { background: var(--muted-bg); }
+    .divider { width: 40px; height: 1px; background: var(--border); margin-bottom: 20px; }
+    .new-game-link {
+      background: none; border: none; color: var(--muted); font-size: 13px;
+      cursor: pointer; font-family: inherit;
+      text-decoration: underline; text-underline-offset: 3px;
+    }
+
+    /* ── toast ────────────────── */
+    .toast {
+      position: fixed; top: 20px; left: 50%;
+      transform: translateX(-50%) translateY(-80px);
+      padding: 8px 16px; border-radius: 6px;
+      font-size: 13px; font-weight: 600; color: #fff;
+      transition: transform 0.3s cubic-bezier(0.34,1.56,0.64,1);
+      z-index: 50; white-space: nowrap; pointer-events: none;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.12);
+    }
+    .toast.show { transform: translateX(-50%) translateY(0); }
+  </style>
+</head>
+<body>
+<div id="root">
+
+  <!-- ══ STATE: LANDING ══ -->
+  <div id="st-landing" class="state show">
+    <div class="body">
+      <div class="landing-emoji">🕵️</div>
+      <div class="landing-title">Imposter Who?</div>
+      <div class="landing-sub">Host a game for your friends</div>
+      <button class="btn btn-accent btn-full" style="margin-top:12px; max-width:280px"
+              onclick="showSetup()">
+        ▶ Start New Game
+      </button>
+    </div>
+  </div>
+
+  <!-- ══ STATE: SETUP ══ -->
+  <div id="st-setup" class="state">
+    <div class="page-hdr">
+      <h1>Set up your game</h1>
+      <p>Add players, then launch</p>
+    </div>
+
+    <div class="card">
+      <div class="sec-lbl">Players</div>
+      <div class="row">
+        <input type="text" id="p-input" placeholder="Enter a name…"
+               onkeydown="if(event.key==='Enter')addPlayer()">
+        <button class="add-btn" onclick="addPlayer()">+</button>
+      </div>
+      <div class="tags" id="p-tags">
+        <span style="color:var(--muted);font-size:13px">No players yet</span>
+      </div>
+      <div class="crown-hint">
+        <span>👑</span><span>Tap crown to pick who controls Next Round</span>
+      </div>
+    </div>
+
+    <div style="flex:1"></div>
+    <div class="actions">
+      <button class="btn btn-accent btn-full" onclick="launchGame()">
+        🚀 Launch Game &amp; Copy Link
+      </button>
+      <button class="btn btn-ghost btn-full" onclick="showLanding()">← Cancel</button>
+    </div>
+  </div>
+
+  <!-- ══ STATE: STARTED ══ -->
+  <div id="st-started" class="state">
+    <div class="body">
+      <div class="success-icon">🎉</div>
+      <div class="success-title">Game started!</div>
+      <div class="success-sub">Share the link with your friends.<br>Link has been copied to clipboard.</div>
+      <button class="copy-again-btn" onclick="copyLinkAgain()">
+        📋 Copy link again
+      </button>
+      <div class="divider"></div>
+      <button class="new-game-link" onclick="showSetup()">↺ Start another game</button>
+    </div>
+  </div>
+
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-database-compat.js"></script>
+<script>
+const firebaseConfig = {
+  apiKey: "AIzaSyDEKyWhI-75_IkPX3p1nWaFKtQQUbNHZS4",
+  authDomain: "impostergame-8b419.firebaseapp.com",
+  databaseURL: "https://impostergame-8b419-default-rtdb.firebaseio.com",
+  projectId: "impostergame-8b419",
+  storageBucket: "impostergame-8b419.firebasestorage.app",
+  messagingSenderId: "508611034053",
+  appId: "1:508611034053:web:f5952bd908782f0b55e9ac"
+};
+firebase.initializeApp(firebaseConfig);
+const db = firebase.database();
+
+let setupPlayers  = [];
+let setupAdminName = null;
+let lastGameUrl   = null;
+
+/* ── state navigation ─────────── */
+function showState(id) {
+  document.querySelectorAll('.state').forEach(s => s.classList.remove('show'));
+  document.getElementById(id).classList.add('show');
+}
+function showLanding() { showState('st-landing'); }
+function showSetup() {
+  // Reset form for a fresh game
+  setupPlayers   = [];
+  setupAdminName = null;
+  document.getElementById('p-tags').innerHTML =
+    '<span style="color:var(--muted);font-size:13px">No players yet</span>';
+  document.getElementById('p-input').value = '';
+  showState('st-setup');
+}
+
+/* ── word list ────────────────── */
+const WORDS = [
+  "Titanic","First night","Tyre","Dosa","Fan","Elephant","Weed","Cigarette","Alcohol","Camera",
+  "War","Donald Trump","America","Missile","Petrol","Shower","Poop","Fish","Dinosaur","Snake",
+  "Everest","Moon","Astronaut","Mahabali","Modiji","Pinarayi Vijayan","Rain","PJ (Poor Joke)",
+  "Earthquake","Tsunami","Tiger","Lion","Shark","Oxygen","Fire","Train","Police","Doctor",
+  "Whistle","Computer","Kitchen","Father","Mother","Appam","Auto rickshaw","Tea","Parotta",
+  "Buffalo","Story","Crow","Curry","Family","Bottle","Lunch","Newspaper","Microphone","Bomb",
+  "Helmet","Window","Bridge","Phone","Firecracker","Temple","Church","Mosque","Market","Bus",
+  "Truck","Laptop","Speaker","Knife","Mango","Coconut","Umbrella","Hospital","Teacher","Student",
+  "Book","Pen","Boat","Biryani","Jeans","Laptop bag","Hair","Gas cylinder","Ship","Mandi",
+  "Zepto","Uno","Crocs","Kozhi","Premam (Love)","Trouser","Shirt","Fridge","Shoes","Lipstick",
+  "Lake","Park","Mustache","Passport","Ticket","Suitcase","Hotel","Beach","Sun","Cloud",
+  "Rainbow","Forest","Desert","Island","Snow","Clock","Watch","Calendar","Mirror","Chair",
+  "Table","Bed","Pillow","Blanket","Door","Lock","Key","Wallet","Money","Coin","Gold","Silver",
+  "Diamond","Ring","Necklace","Charger","Keyboard","Mouse","Screen","TV","Remote","Chess",
+  "Football","Cricket","Bat","Referee","Goal","Medal","Gym","Yoga","Pizza","Burger","Soup",
+  "Salad","Ice cream","Chocolate","Coffee","Juice","Milk","Water","Plate","Spoon","Fork",
+  "Driver","King","Queen","Soldier","Scientist","Stapler","Pickle","Pigeon","Toothbrush",
+  "Pepper","Glove","Calculator","Battery","Scarf","Socks","Helicopter","Ink","Screwdriver",
+  "Pyramid","Ladder","Sticker","Magnet","Curtain","Binoculars","Eraser","Chain","Shovel",
+  "Notebook","Flashlight","Hanger","Rope"
+];
+
+function shuffle(arr) {
+  const a = [...arr];
+  for (let i = a.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [a[i], a[j]] = [a[j], a[i]];
+  }
+  return a;
+}
+
+/* ── helpers ──────────────────── */
+function toArr(v) {
+  if (!v) return [];
+  if (Array.isArray(v)) return v;
+  return Object.values(v);
+}
+function pickImposter(players, prev) {
+  const pool = players.length > 2 ? players.filter(p => p !== prev) : players;
+  return pool[Math.floor(Math.random() * pool.length)];
+}
+function generateGameId() {
+  return Math.random().toString(36).slice(2, 6) + Math.random().toString(36).slice(2, 6);
+}
+
+/* ── setup: players ───────────── */
+function addPlayer() {
+  const inp = document.getElementById('p-input');
+  const n   = inp.value.trim();
+  if (!n || setupPlayers.includes(n)) { inp.value = ''; return; }
+  setupPlayers.push(n);
+  if (setupPlayers.length === 1) setupAdminName = n;
+  inp.value = '';
+  renderTags();
+}
+function removeByIdx(btn) {
+  const i = parseInt(btn.getAttribute('data-i'));
+  const n = setupPlayers[i];
+  setupPlayers.splice(i, 1);
+  if (setupAdminName === n) setupAdminName = setupPlayers[0] ?? null;
+  renderTags();
+}
+function crownByIdx(btn) {
+  setupAdminName = setupPlayers[parseInt(btn.getAttribute('data-i'))];
+  renderTags();
+}
+function renderTags() {
+  const el = document.getElementById('p-tags');
+  if (!setupPlayers.length) {
+    el.innerHTML = '<span style="color:var(--muted);font-size:13px">No players yet</span>';
+    return;
+  }
+  el.innerHTML = setupPlayers.map((n, i) => {
+    const isAdmin  = n === setupAdminName;
+    const safeText = n.replace(/&/g, '&amp;').replace(/</g, '&lt;');
+    return `<div class="tag ${isAdmin ? 'is-admin' : ''}">
+      <button class="crown-btn" data-i="${i}" onclick="crownByIdx(this)">👑</button>
+      ${safeText}
+      <span class="tag-x" data-i="${i}" onclick="removeByIdx(this)">×</span>
+    </div>`;
+  }).join('');
+}
+
+/* ── launch ───────────────────── */
+function launchGame() {
+  if (setupPlayers.length < 2) { showToast('⚠️ Add at least 2 players!', 'var(--red)'); return; }
+
+  const gameId    = generateGameId();
+  const wordQueue = shuffle(WORDS);
+  const word      = wordQueue[0];
+  const imposter  = pickImposter(setupPlayers, null);
+
+  db.ref(`imposter/games/${gameId}`).set({
+    status: 'active', players: setupPlayers,
+    wordQueue: wordQueue, wordIndex: 0,
+    currentWord: word, imposterName: imposter,
+    adminPlayerName: setupAdminName, round: 1, updatedAt: Date.now()
+  });
+
+  const base = window.location.href.replace(/\/index\.html.*$/, '').replace(/\/$/, '');
+  lastGameUrl = `${base}/game.html?id=${gameId}`;
+
+  navigator.clipboard.writeText(lastGameUrl).catch(() => {});
+  showState('st-started');
+}
+
+function copyLinkAgain() {
+  if (!lastGameUrl) return;
+  navigator.clipboard.writeText(lastGameUrl).then(() => {
+    showToast('✅ Link copied!', 'var(--green)');
+  }).catch(() => {
+    prompt('Copy this link:', lastGameUrl);
+  });
+}
+
+/* ── toast ────────────────────── */
+function showToast(msg, color) {
+  const t = document.getElementById('toast');
+  t.textContent = msg; t.style.background = color || 'var(--accent)';
+  t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 2500);
+}
+</script>
+</body>
+</html>
